@@ -1,18 +1,53 @@
----
-title: "R Notebook"
-output: html_notebook
----
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+## packages
 
 ```{r}
-plot(cars)
+library(tidyverse)
+library(seaiceR)
+library(conflicted)
+conflict_prefer("filter", "dplyr")
 ```
 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+## datasets
 
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+```{r}
+datasets <- c("ArcticBay", "FoxeBasin", "HudsonBay", "HudsonStrait")
+suffixes <- c("Brkup", "Frzup", "Icefree")
+extensions <- ".csv"
+d <- crossing(datasets, type=suffixes, extensions)
+d %>% mutate(fname = str_c(datasets, "_", type, extensions)) -> all_data
+all_data
+```
 
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+read in
+
+```{r}
+all_data %>% 
+  rowwise() %>% 
+  mutate(data = list(read_csv(fname))) %>% 
+  unnest(data) -> all_data
+all_data
+```
+
+breakups
+
+```{r}
+all_data %>% filter(type == "Brkup") %>% 
+  rename(Year = X1) %>% 
+  pivot_longer(`1`:`36`, names_to = "location", values_to = "date") %>% 
+  drop_na() %>% 
+  mutate(location = str_c(datasets, location)) %>% 
+  select(Year, location, date) %>% 
+  pivot_wider(names_from = Year, values_from = date) -> this_data
+this_data
+this_data %>% 
+  dist() -> my_dist
+```
+
+feed that into hclust
+
+```{r}
+d.1 <- hclust(my_dist, method = "ward.D")
+plot(d.1, labels = this_data$location)
+```
+
