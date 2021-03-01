@@ -32,7 +32,7 @@ all_data
 breakups
 
 ```{r}
-all_data %>% filter(type == "Brkup") %>% 
+all_data %>% filter(type == "Frzup") %>% 
   rename(Year = X1) %>% 
   pivot_longer(`1`:`36`, names_to = "location", values_to = "date") %>% 
   drop_na() %>% 
@@ -47,7 +47,17 @@ this_data %>%
 feed that into hclust
 
 ```{r}
+n_clusters <- 8
 d.1 <- hclust(my_dist, method = "ward.D")
 plot(d.1, labels = this_data$location)
+rect.hclust(d.1, n_clusters)
+```
+pop out graph, blow it up
+
+
+```{r}
+tibble(location = this_data$location, cluster = cutree(d.1, n_clusters)) %>% 
+  extract(location, into = "dataset", regex = "([A-Za-z]+)[0-9]+$", remove = FALSE) %>% 
+  with(., table(dataset, cluster))
 ```
 
