@@ -32,7 +32,8 @@ all_data
 breakups
 
 ```{r}
-all_data %>% filter(type == "Frzup") %>% 
+this_type <- "Icefree"
+all_data %>% filter(type == this_type) %>% 
   rename(Year = X1) %>% 
   pivot_longer(`1`:`36`, names_to = "location", values_to = "date") %>% 
   drop_na() %>% 
