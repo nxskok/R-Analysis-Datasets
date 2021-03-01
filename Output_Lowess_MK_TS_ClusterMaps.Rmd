@@ -1,0 +1,509 @@
+---
+title: "Output"
+output: html_notebook
+---
+
+## All Time Trends and Cluster Analsysis Using the Functions  #########################
+## Again, But Better With Functions ###################################################
+
+### Packages
+
+```{r}
+library(tidyverse)
+library(mkac)
+```
+
+Data
+
+
+## Breakup ####################################################################################
+
+```{r}
+fname="FoxeBasin_Brkup.csv"
+fname_coords="Foxe Basin Location Coordinates 3 proper.xlsx"
+sea_ice_data=read_in(fname)
+sea_ice_long=make_long(sea_ice_data)
+```
+
+
+
+## Time Trend Plots ###############################################
+
+### Linear Trends ###############
+
+```{r, fig.height=12, fig.width=12}
+time_trend_plot_linear(sea_ice_long)
+```
+```{r}
+sea_ice_long %>% 
+  nest(-location) %>% 
+  mutate(g=map2(data, location, ~ggplot(.x, aes(x=year, y=day))+geom_point()+geom_smooth(method="lm", se=F)+ ggtitle(as.character(.y)))) %>% 
+  pull(g)
+```
+
+
+
+### Lowess Curves ###############
+
+```{r, fig.height=12, fig.width=12}
+time_trend_plot_lowess(sea_ice_long)
+```
+
+```{r}
+sea_ice_long %>% 
+  nest(-location) %>% 
+  mutate(g=map2(data, location, ~ggplot(.x, aes(x=year, y=day))+geom_point()+geom_smooth(se=F)+ ggtitle(as.character(.y)))) %>% 
+  pull(g)
+```
+
+
+
+
+
+## Mann-Kendall and Theil-Sen #########################################################
+
+### Mann-Kendall ##################################
+
+```{r}
+tab=mann_kendall_table(sea_ice_long)
+tab
+```
+
+```{r}
+tab %>% count(P_value_adj<=0.05)
+```
+
+### Theil-Sen ###############################################
+
+```{r}
+slopes=ts_slopes(sea_ice_long)
+slopes
+```
+
+### Mean of Theil Sen Slope ########################
+
+```{r}
+slopes %>% summarize(mean=mean(theil_sen), sd=sd(theil_sen))
+```
+
+
+
+
+## Mann-Kendall Maps ###################################
+
+```{r, fig.height=9, fig.width=9}
+coordinates=read_coordinates(fname_coords)
+mk_map(tab, coordinates, long_lim=c(72, 84), lat_lim=c(63, 71), longlegend=88, latlegend = 69)
+```
+
+
+
+
+## Theil-Sen Maps ###################################
+
+
+```{r, fig.width=9, fig.height=9}
+draw_ts_map(locations, xlim=c(-84, -72), ylim=c(63, 71), slopes$theil_sen, scaling=2.7)
+```
+
+
+## Cluster Analysis ###################################################################################
+
+```{r}
+sea_ice_data
+```
+
+
+
+
+### Ward's Method ##################################
+
+
+##### Missings Included
+
+```{r}
+w_1=dendrogram(sea_ice_data, remove_missing = F, n_cluster=6) # with missing included
+w_1$tree
+w_1$clusters
+```
+
+
+##### Missings Excluded
+
+```{r}
+w_2=dendrogram(sea_ice_data, remove_missing = T, n_cluster=6) # with missing excluded
+w_2$tree
+w_2$clusters
+```
+
+
+
+```{r}
+k_1=km(sea_ice_data, n_cluster=6)
+k_1$scree
+k_1$clusters
+```
+
+
+
+
+## Cluster Maps ##############################################
+
+```{r}
+library(rworldmap)
+library("readxl")
+locations=read_excel("Foxe Basin Location Coordinates 3 proper.xlsx", skip=1)
+lons=c(-84,-72)
+lats=c(63,71)
+```
+
+
+### Ward's Method (Missings Included)
+
+
+```{r, fig.height=9, fig.width=9}
+draw_map(locations, xlim=lons, ylim=lats, clusters=w_1$clusters)
+```
+
+
+
+### Ward's Method (Missings Excluded)
+
+
+```{r, fig.height=9, fig.width=9}
+draw_map(locations, xlim=lons, ylim=lats, clusters=w_2$clusters)
+```
+
+
+
+
+### K-means Method (Missings Excluded)
+
+
+```{r, fig.height=9, fig.width=9}
+draw_map(locations, xlim=lons, ylim=lats, clusters=k_1$clusters)
+```
+
+
+
+
+## Freeze-up ####################################################################################
+
+```{r}
+fname="FoxeBasin_Frzup.csv"
+fname_coords="Foxe Basin Location Coordinates 3 proper.xlsx"
+sea_ice_data=read_in(fname)
+sea_ice_long=make_long(sea_ice_data)
+```
+
+## Time Trend Plots ###############################################
+
+```{r, fig.height=12, fig.width=12}
+time_trend_plot_linear(sea_ice_long)
+```
+```{r}
+sea_ice_long %>% 
+  nest(-location) %>% 
+  mutate(g=map2(data, location, ~ggplot(.x, aes(x=year, y=day))+geom_point()+geom_smooth(method="lm", se=F)+ ggtitle(as.character(.y)))) %>% 
+  pull(g)
+```
+
+```{r, fig.height=12, fig.width=12}
+time_trend_plot_lowess(sea_ice_long)
+```
+
+```{r}
+sea_ice_long %>% 
+  nest(-location) %>% 
+  mutate(g=map2(data, location, ~ggplot(.x, aes(x=year, y=day))+geom_point()+geom_smooth(se=F)+ ggtitle(as.character(.y)))) %>% 
+  pull(g)
+```
+
+
+
+
+
+## Mann-Kendall and Theil-Sen #########################################################
+
+### Mann-Kendall ##################################
+
+```{r}
+tab=mann_kendall_table(sea_ice_long)
+tab
+```
+
+```{r}
+tab %>% count(P_value_adj<=0.05)
+```
+
+### Theil-Sen ###############################################
+
+```{r}
+slopes=ts_slopes(sea_ice_long)
+slopes
+```
+
+### Mean of Theil Sen Slope ########################
+
+```{r}
+slopes %>% summarize(mean=mean(theil_sen), sd=sd(theil_sen))
+```
+
+
+
+
+## Mann-Kendall Maps ###################################
+
+```{r, fig.height=9, fig.width=9}
+coordinates=read_coordinates(fname_coords)
+mk_map(tab, coordinates, long_lim=c(72, 84), lat_lim=c(63, 71), longlegend=88, latlegend = 69)
+```
+
+
+
+
+## Theil-Sen Maps ###################################
+
+
+```{r, fig.width=9, fig.height=9}
+draw_ts_map(locations, xlim=c(-84, -72), ylim=c(63, 71), slopes$theil_sen, scaling=2.7)
+```
+
+
+## Cluster Analysis ###################################################################################
+
+```{r}
+sea_ice_data
+```
+
+
+
+
+### Ward's Method ##################################
+
+
+##### Missings Included
+
+```{r}
+w_1=dendrogram(sea_ice_data, remove_missing = F, n_cluster=6) # with missing included
+w_1$tree
+w_1$clusters
+```
+
+
+##### Missings Excluded
+
+```{r}
+w_2=dendrogram(sea_ice_data, remove_missing = T, n_cluster=6) # with missing excluded
+w_2$tree
+w_2$clusters
+```
+
+
+
+```{r}
+k_1=km(sea_ice_data, n_cluster=6)
+k_1$scree
+k_1$clusters
+```
+
+
+
+
+## Cluster Maps ##############################################
+
+```{r}
+library(rworldmap)
+library("readxl")
+locations=read_excel("Foxe Basin Location Coordinates 3 proper.xlsx", skip=1)
+lons=c(-84,-72)
+lats=c(63,71)
+```
+
+
+### Ward's Method (Missings Included)
+
+
+```{r, fig.height=9, fig.width=9}
+draw_map(locations, xlim=lons, ylim=lats, clusters=w_1$clusters)
+```
+
+
+
+### Ward's Method (Missings Excluded)
+
+
+```{r, fig.height=9, fig.width=9}
+draw_map(locations, xlim=lons, ylim=lats, clusters=w_2$clusters)
+```
+
+
+
+
+### K-means Method (Missings Excluded)
+
+
+```{r, fig.height=9, fig.width=9}
+draw_map(locations, xlim=lons, ylim=lats, clusters=k_1$clusters)
+```
+
+
+## Ice Free ####################################################################################
+
+```{r}
+fname="FoxeBasin_Icefree.csv"
+fname_coords="Foxe Basin Location Coordinates 3 proper.xlsx"
+sea_ice_data=read_in(fname)
+sea_ice_long=make_long(sea_ice_data)
+```
+
+## Time Trend Plots ###############################################
+
+```{r, fig.height=12, fig.width=12}
+time_trend_plot_linear(sea_ice_long)
+```
+```{r}
+sea_ice_long %>% 
+  nest(-location) %>% 
+  mutate(g=map2(data, location, ~ggplot(.x, aes(x=year, y=day))+geom_point()+geom_smooth(method="lm", se=F)+ ggtitle(as.character(.y)))) %>% 
+  pull(g)
+```
+
+```{r, fig.height=12, fig.width=12}
+time_trend_plot_lowess(sea_ice_long)
+```
+
+```{r}
+sea_ice_long %>% 
+  nest(-location) %>% 
+  mutate(g=map2(data, location, ~ggplot(.x, aes(x=year, y=day))+geom_point()+geom_smooth(se=F)+ ggtitle(as.character(.y)))) %>% 
+  pull(g)
+```
+
+
+
+
+
+## Mann-Kendall and Theil-Sen #########################################################
+
+### Mann-Kendall ##################################
+
+```{r}
+tab=mann_kendall_table(sea_ice_long)
+tab
+```
+
+```{r}
+tab %>% count(P_value_adj<=0.05)
+```
+
+### Theil-Sen ###############################################
+
+```{r}
+slopes=ts_slopes(sea_ice_long)
+slopes
+```
+
+### Mean of Theil Sen Slope ########################
+
+```{r}
+slopes %>% summarize(mean=mean(theil_sen), sd=sd(theil_sen))
+```
+
+
+
+
+## Mann-Kendall Maps ###################################
+
+```{r, fig.height=9, fig.width=9}
+coordinates=read_coordinates(fname_coords)
+mk_map(tab, coordinates, long_lim=c(72, 84), lat_lim=c(63, 71), longlegend=88, latlegend = 69)
+```
+
+
+
+
+## Theil-Sen Maps ###################################
+
+
+```{r, fig.width=9, fig.height=9}
+draw_ts_map(locations, xlim=c(-84, -72), ylim=c(63, 71), slopes$theil_sen, scaling=2.7)
+```
+
+
+## Cluster Analysis ###################################################################################
+
+```{r}
+sea_ice_data
+```
+
+
+
+
+### Ward's Method ##################################
+
+
+##### Missings Included
+
+```{r}
+w_1=dendrogram(sea_ice_data, remove_missing = F, n_cluster=6) # with missing included
+w_1$tree
+w_1$clusters
+```
+
+
+##### Missings Excluded
+
+```{r}
+w_2=dendrogram(sea_ice_data, remove_missing = T, n_cluster=6) # with missing excluded
+w_2$tree
+w_2$clusters
+```
+
+
+
+```{r}
+k_1=km(sea_ice_data, n_cluster=6)
+k_1$scree
+k_1$clusters
+```
+
+
+
+
+## Cluster Maps ##############################################
+
+```{r}
+library(rworldmap)
+library("readxl")
+locations=read_excel("Foxe Basin Location Coordinates 3 proper.xlsx", skip=1)
+lons=c(-84,-72)
+lats=c(63,71)
+```
+
+
+### Ward's Method (Missings Included)
+
+
+```{r, fig.height=9, fig.width=9}
+draw_map(locations, xlim=lons, ylim=lats, clusters=w_1$clusters)
+```
+
+
+
+### Ward's Method (Missings Excluded)
+
+
+```{r, fig.height=9, fig.width=9}
+draw_map(locations, xlim=lons, ylim=lats, clusters=w_2$clusters)
+```
+
+
+
+
+### K-means Method (Missings Excluded)
+
+
+```{r, fig.height=9, fig.width=9}
+draw_map(locations, xlim=lons, ylim=lats, clusters=k_1$clusters)
+```

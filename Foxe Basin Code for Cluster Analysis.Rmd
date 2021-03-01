@@ -1,0 +1,638 @@
+---
+title: "Code for Cluster Analysis"
+output: html_notebook
+---
+
+## packages
+
+```{r}
+library(tidyverse)
+```
+
+
+###############################################################################################################################################
+###############################################################################################################################################
+##################################################################################################################################################
+
+
+## Breakup ##
+
+## read in data
+
+## file name
+
+```{r}
+fname="FoxeBasin_Brkup.csv"
+```
+
+## read in data
+
+```{r}
+sea_ice_data=read_csv(fname)
+sea_ice_data %>% rename(year=X1) -> sea_ice_data
+sea_ice_data
+```
+
+```{r}
+n_cluster=6
+```
+
+
+inter-location distances
+
+```{r}
+sea_ice_data %>% select(-year) %>% t() %>% dist() -> d
+d
+```
+
+change number of clusters to suit
+
+```{r}
+bu.hc=hclust(d,method="ward.D")
+plot(bu.hc,xlab="missings included")
+rect.hclust(bu.hc,n_cluster)
+```
+
+```{r}
+cl.8.ward.with.missing=cutree(bu.hc,k=n_cluster)
+cl.8.ward.with.missing
+```
+
+Now, remove any years with missing values
+
+```{r}
+sea_ice_data %>% drop_na()
+```
+
+```{r}
+sea_ice_data %>% drop_na() %>%
+  select(-year) %>% t() %>% dist() -> d2
+```
+
+ward again. Again change number of clusters to suit.
+
+```{r}
+bu.hc=hclust(d,method="ward.D")
+plot(bu.hc,xlab="missings excluded")
+rect.hclust(bu.hc,n_cluster)
+```
+
+again, for map
+
+```{r}
+cl.8.ward.without.missing=cutree(bu.hc,k=n_cluster)
+cl.8.ward.without.missing
+```
+
+## K-means
+
+Make scree plot
+
+```{r}
+sea_ice_data %>% drop_na() %>% select(-year) -> vv
+tibble(clusters=2:15) %>% 
+  mutate(km=map(clusters, ~kmeans(vv, ., nstart=40))) %>% 
+  mutate(ss=map_dbl(km, "tot.withinss")) -> twss
+ggplot(twss, aes(x=clusters, y=ss))+geom_point()+geom_line()
+```
+
+## insert your preferred value for number of clusters (eg 6)
+
+```{r}
+vv %>% t() %>% kmeans(n_cluster, nstart=40) -> kmm
+kmclusters=enframe(kmm$cluster,name="location", value="cluster")
+kmclusters
+```
+
+
+
+##################################################################################################################################################
+###############################################################################################################################################
+
+## Cluster Maps ##
+
+```{r}
+#install.packages("rworldmap")
+library(rworldmap)
+```
+
+read in locations
+
+```{r}
+library("readxl")
+locations=read_excel("Foxe Basin Location Coordinates 3 proper.xlsx", skip=1)
+locations
+```
+
+
+```{r}
+newmap=getMap(resolution="low")
+
+#Foxe Basin Map with Locations
+
+with(locations, -range(Longitude))
+with(locations, range(Latitude))
+lons=c(-84,-72)
+lats=c(63,71)
+with(locations,plot(newmap,xlim=lons,ylim=lats))
+
+```
+
+```{r fig.height=9, fig.width=9}
+with(locations,plot(newmap,xlim=lons,ylim=lats))
+with(locations, points(-Longitude,Latitude,pch=19,col=1,cex=1.7))
+with(locations, text(-Longitude,Latitude,Location,pos=3))
+
+```
+
+
+
+
+##################################################################################################################################################
+
+## Ward Clustering (With Missing) ##
+
+```{r fig.height=9, fig.width=9}
+with(locations,plot(newmap,xlim=lons,ylim=lats))
+with(locations, points(-Longitude,Latitude,pch=19,col=cl.8.ward.with.missing,cex=2.3))
+with(locations, text(-Longitude,Latitude,Location,pos=3,cex=1.7))
+
+```
+
+##################################################################################################################################################
+
+## Ward Clustering (Without Missing) ##
+
+```{r fig.height=9, fig.width=9}
+with(locations,plot(newmap,xlim=lons,ylim=lats))
+with(locations, points(-Longitude,Latitude,pch=19,col=cl.8.ward.without.missing,cex=2.3))
+with(locations, text(-Longitude,Latitude,Location,pos=3,cex=1.7))
+
+```
+
+
+##################################################################################################################################################
+
+## K-means Clustering (Without Missing)  ##
+
+```{r fig.height=9, fig.width=9}
+with(locations,plot(newmap,xlim=lons,ylim=lats))
+with(locations, points(-Longitude,Latitude,pch=19,col=kmclusters$cluster,cex=2.3))
+with(locations, text(-Longitude,Latitude,Location,pos=3,cex=1.7))
+
+```
+
+
+
+##################################################################################################################################################
+##################################################################################################################################################
+##################################################################################################################################################
+
+## Freeze-up ##
+
+## read in data
+
+## file name
+
+```{r}
+fname="FoxeBasin_Frzup.csv"
+```
+
+## read in data
+
+```{r}
+sea_ice_data=read_csv(fname)
+sea_ice_data %>% rename(year=X1) -> sea_ice_data
+sea_ice_data
+```
+
+```{r}
+n_cluster=6
+```
+
+
+inter-location distances
+
+```{r}
+sea_ice_data %>% select(-year) %>% t() %>% dist() -> d
+d
+```
+
+change number of clusters to suit
+
+```{r}
+bu.hc=hclust(d,method="ward.D")
+plot(bu.hc,xlab="missings included")
+rect.hclust(bu.hc,n_cluster)
+```
+
+```{r}
+cl.8.ward.with.missing=cutree(bu.hc,k=n_cluster) # this 5 should agree with rect.hclust above
+cl.8.ward.with.missing
+```
+
+Now, remove any years with missing values
+
+```{r}
+sea_ice_data %>% drop_na()
+```
+
+```{r}
+sea_ice_data %>% drop_na() %>%
+  select(-year) %>% t() %>% dist() -> d2
+```
+
+ward again. Again change number of clusters to suit.
+
+```{r}
+bu.hc=hclust(d,method="ward.D")
+plot(bu.hc,xlab="missings excluded")
+rect.hclust(bu.hc,n_cluster)
+```
+
+again, for map
+
+```{r}
+cl.8.ward.without.missing=cutree(bu.hc,k=n_cluster)
+cl.8.ward.without.missing
+```
+
+## K-means
+
+Make scree plot
+
+```{r}
+sea_ice_data %>% drop_na() %>% select(-year) -> vv
+tibble(clusters=2:15) %>% 
+  mutate(km=map(clusters, ~kmeans(vv, ., nstart=40))) %>% 
+  mutate(ss=map_dbl(km, "tot.withinss")) -> twss
+ggplot(twss, aes(x=clusters, y=ss))+geom_point()+geom_line()
+```
+
+## insert your preferred value for number of clusters (eg 6)
+
+```{r}
+vv %>% kmeans(n_cluster, nstart=40) -> kmm
+kmclusters=enframe(kmm$cluster,name="location", value="cluster")
+kmclusters
+```
+
+
+
+###############################################################################################################################################
+###############################################################################################################################################
+
+## Cluster Maps ##
+
+```{r}
+#install.packages("rworldmap")
+library(rworldmap)
+```
+
+read in locations
+
+```{r}
+library("readxl")
+locations=read_excel("Foxe Basin Location Coordinates 3 proper.xlsx", skip=1)
+locations
+```
+
+
+```{r}
+newmap=getMap(resolution="low")
+
+#Foxe Basin Map with Locations
+
+with(locations, -range(Longitude))
+with(locations, range(Latitude))
+lons=c(-84,-72)
+lats=c(63,71)
+with(locations,plot(newmap,xlim=lons,ylim=lats))
+
+```
+
+```{r fig.height=9, fig.width=9}
+with(locations,plot(newmap,xlim=lons,ylim=lats))
+with(locations, points(-Longitude,Latitude,pch=19,col=1,cex=1.7))
+with(locations, text(-Longitude,Latitude,Location,pos=3))
+
+```
+
+
+
+
+##################################################################################################################################################
+
+## Ward Clustering (With Missing) ##
+
+```{r fig.height=9, fig.width=9}
+with(locations,plot(newmap,xlim=lons,ylim=lats))
+with(locations, points(-Longitude,Latitude,pch=19,col=cl.8.ward.with.missing,cex=2.3))
+with(locations, text(-Longitude,Latitude,Location,pos=3,cex=1.7))
+
+```
+
+##################################################################################################################################################
+
+## Ward Clustering (Without Missing) ##
+
+```{r fig.height=9, fig.width=9}
+with(locations,plot(newmap,xlim=lons,ylim=lats))
+with(locations, points(-Longitude,Latitude,pch=19,col=cl.8.ward.without.missing,cex=2.3))
+with(locations, text(-Longitude,Latitude,Location,pos=3,cex=1.7))
+
+```
+
+
+##################################################################################################################################################
+
+## K-means Clustering (Without Missing)  ##
+
+```{r fig.height=9, fig.width=9}
+with(locations,plot(newmap,xlim=lons,ylim=lats))
+with(locations, points(-Longitude,Latitude,pch=19,col=kmclusters$cluster,cex=2.3))
+with(locations, text(-Longitude,Latitude,Location,pos=3,cex=1.7))
+
+```
+
+
+
+##################################################################################################################################################
+##################################################################################################################################################
+##################################################################################################################################################
+
+
+## Ice Free ##
+
+## read in data
+
+## file name
+
+```{r}
+fname="FoxeBasin_Icefree.csv"
+```
+
+## read in data
+
+```{r}
+sea_ice_data=read_csv(fname)
+sea_ice_data %>% rename(year=X1) -> sea_ice_data
+sea_ice_data
+```
+
+```{r}
+n_cluster=6
+```
+
+inter-location distances
+
+```{r}
+sea_ice_data %>% select(-year) %>% t() %>% dist() -> d
+d
+```
+
+change number of clusters to suit
+
+```{r}
+bu.hc=hclust(d,method="ward.D")
+plot(bu.hc,xlab="missings included")
+rect.hclust(bu.hc,n_cluster)
+```
+
+```{r}
+cl.8.ward.with.missing=cutree(bu.hc,k=n_cluster)
+cl.8.ward.with.missing
+```
+
+Now, remove any years with missing values
+
+```{r}
+sea_ice_data %>% drop_na()
+```
+
+```{r}
+sea_ice_data %>% drop_na() %>%
+  select(-year) %>% t() %>% dist() -> d2
+```
+
+ward again. Again change number of clusters to suit.
+
+```{r}
+bu.hc=hclust(d,method="ward.D")
+plot(bu.hc,xlab="missings excluded")
+rect.hclust(bu.hc,n_cluster)
+```
+
+again, for map
+
+```{r}
+cl.8.ward.without.missing=cutree(bu.hc,k=n_cluster)
+cl.8.ward.without.missing
+```
+
+## K-means
+
+Make scree plot
+
+```{r}
+sea_ice_data %>% drop_na() %>% select(-year) -> vv
+tibble(clusters=2:15) %>% 
+  mutate(km=map(clusters, ~kmeans(vv, ., nstart=40))) %>% 
+  mutate(ss=map_dbl(km, "tot.withinss")) -> twss
+ggplot(twss, aes(x=clusters, y=ss))+geom_point()+geom_line()
+```
+
+## insert your preferred value for number of clusters (eg 6)
+
+```{r}
+vv %>% kmeans(n_cluster, nstart=40) -> kmm
+kmclusters=enframe(kmm$cluster,name="location", value="cluster")
+kmclusters
+```
+
+
+
+
+###############################################################################################################################################
+
+## Cluster Maps ##
+
+```{r}
+#install.packages("rworldmap")
+library(rworldmap)
+```
+
+read in locations
+
+```{r}
+library("readxl")
+locations=read_excel("Foxe Basin Location Coordinates 3 proper.xlsx", skip=1)
+locations
+```
+
+
+```{r}
+newmap=getMap(resolution="low")
+
+#Foxe Basin Map with Locations
+
+with(locations, -range(Longitude))
+with(locations, range(Latitude))
+lons=c(-84,-72)
+lats=c(63,71)
+with(locations,plot(newmap,xlim=lons,ylim=lats))
+
+```
+
+```{r fig.height=9, fig.width=9}
+with(locations,plot(newmap,xlim=lons,ylim=lats))
+with(locations, points(-Longitude,Latitude,pch=19,col=1,cex=1.7))
+with(locations, text(-Longitude,Latitude,Location,pos=3))
+
+```
+
+
+
+
+##################################################################################################################################################
+
+## Ward Clustering (With Missing) ##
+
+```{r fig.height=9, fig.width=9}
+with(locations,plot(newmap,xlim=lons,ylim=lats))
+with(locations, points(-Longitude,Latitude,pch=19,col=cl.8.ward.with.missing,cex=2.3))
+with(locations, text(-Longitude,Latitude,Location,pos=3,cex=1.7))
+
+```
+
+##################################################################################################################################################
+
+## Ward Clustering (Without Missing) ##
+
+```{r fig.height=9, fig.width=9}
+with(locations,plot(newmap,xlim=lons,ylim=lats))
+with(locations, points(-Longitude,Latitude,pch=19,col=cl.8.ward.without.missing,cex=2.3))
+with(locations, text(-Longitude,Latitude,Location,pos=3,cex=1.7))
+
+```
+
+
+##################################################################################################################################################
+
+## K-means Clustering (Without Missing)  ##
+
+```{r fig.height=9, fig.width=9}
+with(locations,plot(newmap,xlim=lons,ylim=lats))
+with(locations, points(-Longitude,Latitude,pch=19,col=kmclusters$cluster,cex=2.3))
+with(locations, text(-Longitude,Latitude,Location,pos=3,cex=1.7))
+
+```
+
+
+
+
+##################################################################################################################################################
+##################################################################################################################################################
+
+## Old Cluster Map Code ##
+
+##################################################################################################################################################
+##################################################################################################################################################
+
+
+
+```{r}
+
+
+make.map=function(my.map,v,colours=1:36)
+{
+  # translate given colours into appropriate length vector for 
+  # plotting
+  plot.cols=colours[v]
+  plot(my.map,xlim=c(-90,-80),ylim=c(50,65),pch=19)
+  pts=read.table("locations.txt",header=T)
+  attach(pts)
+  points=data.frame(number=1:36,long=-long,lat=lat)
+  detach(pts)
+  attach(points)
+  points(long,lat,pch=19,col=plot.cols)
+  text(long,lat,number,pos=4)  
+  detach(points)
+  w=levels(v)
+  legend(-108,64,legend=w,col=colours,pch=19)
+}
+
+
+
+#install.packages("rworldmap")
+library(rworldmap)
+
+newmap=getMap(resolution="low")
+
+#Hudson Strait Map with Locations
+
+plot(newmap,xlim=c(-80,-63),ylim=c(57,66))
+pts=read.table("locations2_HudsonStrait.txt",header=T)
+head(pts)
+attach(pts)
+points=data.frame(number=Location,long=-Longitude,lat=Latitude)
+detach(pts)
+points
+attach(points)
+points(long,lat,pch=19,col=1)
+text(long,lat,number,pos=3)
+
+detach(points)
+
+
+#Foxe Basin Map with Locations
+
+plot(newmap,xlim=c(-84,-72),ylim=c(64,71))
+pts=read.table("locations3_FoxeBasin.txt",header=T)
+head(pts)
+attach(pts)
+points=data.frame(number=Location,long=-Longitude,lat=Latitude)
+detach(pts)
+points
+attach(points)
+points(long,lat,pch=19,col=1)
+text(long,lat,number,pos=3)
+
+detach(points)
+
+##################################################################
+#Jottings
+
+# make a map with all points black and numbered
+
+plot(newmap,xlim=c(-90,-80),ylim=c(50,65))
+pts=read.table("locations.txt",header=T)
+pts
+attach(pts)
+points=data.frame(number=1:36,long=-long,lat=lat)
+points
+detach(pts)
+attach(points)
+points(long,lat,pch=19)
+text(long,lat,number,pos=4)
+detach(points)
+
+drawmap=function(map,points,clustering)
+{
+  title=deparse(substitute(clustering))
+  plot(map,xlim=c(-90,-80),ylim=c(50,65))
+  text(-100,55,title)
+  attach(points)
+  points(long,lat,pch=19,col=clustering,cex=2)
+  text(long,lat,number,pos=4,cex=0.75)  
+  detach(points)
+  invisible()
+}
+
+drawmap(newmap,points,fake.cluster)
+
+```
+
+
+```
+

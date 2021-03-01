@@ -1,0 +1,270 @@
+---
+Title: "Code for Lowess Curves, Mann-Kendall and Theil-Sen"
+Output: html_notebook
+---
+
+## packages
+
+```{r}
+library(tidyverse)
+library(mkac)
+```
+
+
+
+###################################################################################################################################################
+###################################################################################################################################################
+
+## Breakup ##
+
+## file name
+
+```{r}
+fname="FoxeBasin_Brkup.csv"
+```
+
+## read in data
+
+```{r}
+sea_ice_data=read_csv(fname)
+sea_ice_data %>% rename(year=X1) -> sea_ice_data
+sea_ice_data
+```
+
+## time trends
+
+```{r}
+sea_ice_data %>% gather(location, day, -year) %>% 
+  mutate(location=as.numeric(location)) -> sea_ice_long
+sea_ice_long
+```
+
+time trend graphs
+
+```{r fig.height=12, fig.width=12}
+ggplot(sea_ice_long, aes(x=year, y=day))+geom_point()+
+  geom_smooth(se=F) +
+  facet_wrap(~location)
+```
+
+```{r}
+sea_ice_long %>% 
+  nest(-location) %>% 
+  mutate(g=map2(data, location, ~ggplot(.x, aes(x=year, y=day))+geom_point()+geom_smooth(se=F)+ ggtitle(as.character(.y)))) %>% 
+  pull(g)
+```
+
+
+## Mann-Kendall and Theil-Sen
+
+```{r}
+sea_ice_long
+```
+
+```{r}
+sea_ice_long %>% 
+  drop_na() %>% 
+  nest(-location) %>% 
+  mutate(MK=map(data, ~as_tibble(kendall_Z_adjusted(.$day)))) %>% 
+  unnest(MK) %>% 
+  mutate(P_value_2=format(P_value, scientific=F)) %>% 
+  mutate(P_value_adj_2=format(P_value_adj, scientific=F)) -> mann_kendall
+mann_kendall
+```
+
+## counting significant ones
+
+```{r}
+mann_kendall %>% count(P_value_adj<=0.05)
+```
+
+```{r}
+tss=function(d) {
+  d %>% filter(!is.na(day)) -> dd
+  theil_sen_slope(dd$day)
+}
+
+sea_ice_long %>% nest(-location) %>% 
+  mutate(theil_sen=map_dbl(data, ~tss(.))) -> slopes
+slopes
+```
+## mean of Theil Sen Slope
+
+```{r}
+slopes %>% summarize(mean=mean(theil_sen), sd=sd(theil_sen))
+```
+
+
+
+
+###################################################################################################################################################
+###################################################################################################################################################
+
+## Freeze-up ##
+
+## file name
+
+```{r}
+fname="FoxeBasin_Frzup.csv"
+```
+
+## read in data
+
+```{r}
+sea_ice_data=read_csv(fname)
+sea_ice_data %>% rename(year=X1) -> sea_ice_data
+sea_ice_data
+```
+
+## time trends
+
+```{r}
+sea_ice_data %>% gather(location, day, -year) %>% 
+  mutate(location=as.numeric(location)) -> sea_ice_long
+sea_ice_long
+```
+
+time trend graphs
+
+```{r fig.height=12, fig.width=12}
+ggplot(sea_ice_long, aes(x=year, y=day))+geom_point()+
+  geom_smooth(se=F) +
+  facet_wrap(~location)
+```
+
+```{r}
+sea_ice_long %>% 
+  nest(-location) %>% 
+  mutate(g=map2(data, location, ~ggplot(.x, aes(x=year, y=day))+geom_point()+geom_smooth(se=F)+ ggtitle(as.character(.y)))) %>% 
+  pull(g)
+```
+
+
+## Mann-Kendall and Theil-Sen
+
+```{r}
+sea_ice_long
+```
+
+```{r}
+sea_ice_long %>% 
+  drop_na() %>% 
+  nest(-location) %>% 
+  mutate(MK=map(data, ~as_tibble(kendall_Z_adjusted(.$day)))) %>% 
+  unnest(MK) %>% 
+  mutate(P_value_2=format(P_value, scientific=F)) %>% 
+  mutate(P_value_adj_2=format(P_value_adj, scientific=F)) -> mann_kendall
+mann_kendall
+```
+
+## counting significant ones
+
+```{r}
+mann_kendall %>% count(P_value_adj<=0.05)
+```
+
+```{r}
+tss=function(d) {
+  d %>% filter(!is.na(day)) -> dd
+  theil_sen_slope(dd$day)
+}
+
+sea_ice_long %>% nest(-location) %>% 
+  mutate(theil_sen=map_dbl(data, ~tss(.))) -> slopes
+slopes
+```
+## mean of Theil Sen Slope
+
+```{r}
+slopes %>% summarize(mean=mean(theil_sen), sd=sd(theil_sen))
+```
+
+
+
+###################################################################################################################################################
+###################################################################################################################################################
+
+
+## Ice Free ##
+
+## file name
+
+```{r}
+fname="FoxeBasin_Icefree.csv"
+```
+
+## read in data
+
+```{r}
+sea_ice_data=read_csv(fname)
+sea_ice_data %>% rename(year=X1) -> sea_ice_data
+sea_ice_data
+```
+
+## time trends
+
+```{r}
+sea_ice_data %>% gather(location, day, -year) %>% 
+  mutate(location=as.numeric(location)) -> sea_ice_long
+sea_ice_long
+```
+
+time trend graphs
+
+```{r fig.height=12, fig.width=12}
+ggplot(sea_ice_long, aes(x=year, y=day))+geom_point()+
+  geom_smooth(se=F) +
+  facet_wrap(~location)
+```
+
+```{r}
+sea_ice_long %>% 
+  nest(-location) %>% 
+  mutate(g=map2(data, location, ~ggplot(.x, aes(x=year, y=day))+geom_point()+geom_smooth(se=F)+ ggtitle(as.character(.y)))) %>% 
+  pull(g)
+```
+
+
+## Mann-Kendall and Theil-Sen
+
+```{r}
+sea_ice_long
+```
+
+```{r}
+sea_ice_long %>% 
+  drop_na() %>% 
+  nest(-location) %>% 
+  mutate(MK=map(data, ~as_tibble(kendall_Z_adjusted(.$day)))) %>% 
+  unnest(MK) %>% 
+  mutate(P_value_2=format(P_value, scientific=F)) %>% 
+  mutate(P_value_adj_2=format(P_value_adj, scientific=F)) -> mann_kendall
+mann_kendall
+```
+
+## counting significant ones
+
+```{r}
+mann_kendall %>% count(P_value_adj<=0.05)
+```
+
+```{r}
+tss=function(d) {
+  d %>% filter(!is.na(day)) -> dd
+  theil_sen_slope(dd$day)
+}
+
+sea_ice_long %>% nest(-location) %>% 
+  mutate(theil_sen=map_dbl(data, ~tss(.))) -> slopes
+slopes
+```
+## mean of Theil Sen Slope
+
+```{r}
+slopes %>% summarize(mean=mean(theil_sen), sd=sd(theil_sen))
+```
+
+
+
+
+

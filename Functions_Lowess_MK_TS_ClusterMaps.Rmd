@@ -1,0 +1,217 @@
+---
+title: "FUNCTIONS"
+output: html_notebook
+---
+
+## Packages
+
+```{r}
+library(tidyverse)
+library(rworldmap)
+```
+
+## reading in
+
+
+```{r}
+read_in=function(fname){
+  sea_ice_data=read_csv(fname)
+  sea_ice_data %>% rename(year=X1) -> sea_ice_data
+  sea_ice_data
+}
+```
+
+
+
+## make long
+
+```{r}
+make_long=function(d) {
+  d %>% gather(location, day, -year) %>% 
+    mutate(location=as.numeric(location)) -> d_long
+  d_long
+}
+```
+
+
+
+
+## Time Trends
+
+```{r}
+time_trend_plot_lowess=function(d_long){
+  ggplot(d_long, aes(x=year, y=day))+geom_point()+
+    geom_smooth(se=F) +
+    facet_wrap(~location)
+}
+time_trend_plot_linear=function(d_long){
+  ggplot(d_long, aes(x=year, y=day))+geom_point()+
+    geom_smooth(se=F, method="lm") +
+    facet_wrap(~location)
+}
+```
+
+## Mann-Kendall & Theil-Sen ############################################
+
+```{r}
+mann_kendall_table=function(d_long){
+  d_long %>% 
+  drop_na() %>% 
+  nest(-location) %>% 
+  mutate(MK=map(data, ~as_tibble(kendall_Z_adjusted(.$day)))) %>% 
+  unnest(MK) %>% 
+  mutate(P_value_2=format(P_value, scientific=F)) %>% 
+  mutate(P_value_adj_2=format(P_value_adj, scientific=F)) -> mann_kendall
+mann_kendall
+}
+```
+
+
+### counting significant ones
+
+```{r}
+mann_kendall %>% count(P_value_adj<=0.05)
+```
+
+### linear trends
+
+```{r}
+ls=function(d) {
+  d %>% filter(!is.na(day)) -> dd
+  dd.1=lm(day~year, data=dd)
+  coef(dd.1)[2]
+}
+ls_slopes=function(d_long) {
+  d_long %>% nest(-location) %>% 
+    mutate(linear_slope=map_dbl(data, ~ls(.))) -> slopes
+  slopes
+}
+```
+
+
+### Theil-Sen
+
+```{r}
+tss=function(d) {
+  d %>% filter(!is.na(day)) -> dd
+  theil_sen_slope(dd$day)
+}
+ts_slopes=function(d_long) {
+  d_long %>% nest(-location) %>% 
+    mutate(theil_sen=map_dbl(data, ~tss(.))) -> slopes
+  slopes
+}
+```
+
+
+
+## Mann-Kendall Maps ############################################################
+
+```{r}
+read_coordinates=function(fname) {
+  read_excel(fname, skip=1)
+}
+mk_map=function(mk_output, coordinates, long_lim, lat_lim, longlegend, latlegend){
+  mk_output %>% 
+    mutate(stars=cut(P_value_adj,breaks=c(0,0.01,0.05,0.10,1),labels=c("***","**","*","NS"))) %>% 
+    mutate(plot_colour=case_when(
+      P_value_adj<=0.01 ~ "blue",
+      P_value_adj<=0.05 ~ "red",
+      P_value_adj<=0.10 ~ "yellow",
+      TRUE ~ "green"
+    )) -> mann_kendall2
+  mann_kendall2
+  mann_kendall2 %>% distinct(plot_colour, stars) %>% 
+    mutate(rank=case_when(
+      plot_colour == "blue" ~ 1,
+      plot_colour == "red" ~ 2,
+      plot_colour == "yellow" ~ 3,
+      plot_colour == "green" ~ 4
+    )) %>% 
+    arrange(rank) -> legend_map
+  newmap=getMap(resolution="low")
+  with(coordinates, plot(newmap,xlim=sort(-long_lim),ylim=lat_lim))
+  with(coordinates, points(-Longitude,Latitude,pch=19,col=mann_kendall2$plot_colour,cex=2.3))
+  with(coordinates, text(-Longitude,Latitude,Location,pos=3,cex=1.7))
+  legend(-longlegend,latlegend,legend=legend_map$stars,col=legend_map$plot_colour,pch=19, cex=2.3)
+  
+}
+```
+
+
+
+## Theil-Sen Maps ############################################################
+
+```{r}
+draw_ts_map=function(locations, xlim, ylim, slopes, scaling=1) {
+  map=getMap(resolution="low")
+  plot(map,xlim=xlim,ylim=ylim)
+  with(locations, points(-Longitude,Latitude,pch=19,col="red",cex=abs(slopes)*scaling))
+  with(locations, text(-Longitude,Latitude,Location,pos=3,cex=1.7))
+}
+```
+
+
+
+
+## Cluster Analysis ############################################################
+
+### Ward's Method ##################################
+
+```{r}
+dendrogram=function(sea_ice_data, remove_missing=T, n_cluster) {
+  if (remove_missing) {
+    # take out missing
+    sea_ice_data %>% drop_na() -> sea_ice_data
+    label="missings excluded"
+  } else {
+    label="missings included"
+  }
+  sea_ice_data %>% select(-year) %>% t() %>% dist() -> d
+  bu.hc=hclust(d,method="ward.D")
+  g=plot(bu.hc,xlab=label)
+  rect.hclust(bu.hc,n_cluster)
+  g
+  clusters=cutree(bu.hc,k=n_cluster)
+  list(tree=g, clusters=clusters)
+}
+```
+
+### K-means Method #################################
+
+```{r}
+km=function(sea_ice_data, n_cluster){
+  # get rid of missings
+  sea_ice_data %>% drop_na() %>% select(-year) %>% t() -> vv
+  max_clusters=min(15, nrow(vv)-1)
+  print(max_clusters)
+  print(dim(vv))
+  # scree plot
+  tibble(clusters=2:max_clusters) %>% 
+    mutate(km=map(clusters, ~kmeans(vv, ., nstart=40))) %>% 
+    mutate(ss=map_dbl(km, "tot.withinss")) -> twss
+  g=ggplot(twss, aes(x=clusters, y=ss))+geom_point()+geom_line()
+  # get chosen number of clusters
+  vv %>% kmeans(n_cluster, nstart=40) -> kmm
+  clusters=enframe(kmm$cluster,name="location", value="cluster")
+  clusters=kmm$cluster
+  names(clusters)=1:length(clusters)
+  list(scree=g, clusters=clusters)
+}
+```
+
+
+
+## Cluster Maps #############################################
+
+```{r}
+draw_map=function(locations, xlim, ylim, clusters) {
+  map=getMap(resolution="low")
+  plot(map,xlim=xlim,ylim=ylim)
+  with(locations, points(-Longitude,Latitude,pch=19,col=clusters,cex=2.3))
+  with(locations, text(-Longitude,Latitude,Location,pos=3,cex=1.7))
+}
+```
+
+
+

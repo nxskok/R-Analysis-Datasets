@@ -1,0 +1,614 @@
+---
+title: "Arctic Bay Output"
+output: html_notebook
+---
+
+## All Time Trends and Cluster Analsysis Using the Functions  #########################
+## Again, But Better With Functions ###################################################
+
+### Packages
+
+```{r}
+library(tidyverse)
+library(mkac)
+library(readxl)
+```
+
+Data
+
+
+## Breakup ####################################################################################
+
+
+```{r}
+fname="ArcticBay_Brkup.csv"
+fname_coords="Arctic Bay Location Coordinates 2.xlsx"
+sea_ice_data=read_in(fname)
+sea_ice_long=make_long(sea_ice_data)
+```
+
+
+
+## Time Trend Plots ###############################################
+
+### Linear Trends ###############
+
+```{r, fig.height=12, fig.width=12}
+time_trend_plot_linear(sea_ice_long)
+```
+```{r}
+sea_ice_long %>% 
+  nest(-location) %>% 
+  mutate(g=map2(data, location, ~ggplot(.x, aes(x=year, y=day))+geom_point()+geom_smooth(method="lm", se=F)+ ggtitle(as.character(.y)))) %>% 
+  pull(g)
+```
+
+
+
+### Linear Trend Slopes - Magnitude of Trends ##########
+
+```{r}
+slopes=ls_slopes(sea_ice_long)
+slopes
+```
+
+### Average slope of Linear Trends #########
+
+```{r}
+slopes %>% summarize(mean_slope=mean(linear_slope))
+```
+
+### Minimum and Maximum trends (slopes) observed by location, plus all of the positive slopes (for Breakup)
+
+
+```{r}
+slopes %>% 
+  filter(linear_slope<0) %>% 
+  filter(linear_slope==min(linear_slope) | linear_slope==max(linear_slope))
+slopes %>% filter(linear_slope>0) # no rows means there are none of them
+```
+
+
+
+
+
+### Lowess Curves ###############
+
+```{r, fig.height=12, fig.width=12}
+time_trend_plot_lowess(sea_ice_long)
+```
+
+```{r}
+sea_ice_long %>% 
+  nest(-location) %>% 
+  mutate(g=map2(data, location, ~ggplot(.x, aes(x=year, y=day))+geom_point()+geom_smooth(se=F)+ ggtitle(as.character(.y)))) %>% 
+  pull(g)
+```
+
+
+
+
+
+## Mann-Kendall and Theil-Sen #########################################################
+
+### Mann-Kendall ##################################
+
+```{r}
+tab=mann_kendall_table(sea_ice_long)
+tab
+```
+
+```{r}
+tab %>% count(P_value_adj<=0.05)
+```
+
+### Theil-Sen ###############################################
+
+```{r}
+slopes=ts_slopes(sea_ice_long)
+slopes
+```
+
+### Mean of Theil Sen Slope ########################
+
+```{r}
+slopes %>% summarize(mean=mean(theil_sen), sd=sd(theil_sen))
+```
+
+
+
+
+## Mann-Kendall Maps ###################################
+
+```{r, fig.height=9, fig.width=9}
+coordinates=read_coordinates(fname_coords)
+mk_map(tab, coordinates, long_lim=c(84, 87), lat_lim=c(71, 74.5), longlegend=89, latlegend = 74)
+```
+
+
+
+
+## Theil-Sen Maps ###################################
+
+
+```{r, fig.width=9, fig.height=9}
+draw_ts_map(locations, xlim=c(-87, -84), ylim=c(71, 74.5), slopes$theil_sen, scaling=2.7)
+```
+
+
+## Cluster Analysis ###################################################################################
+
+```{r}
+sea_ice_data
+```
+
+
+
+
+### Ward's Method ##################################
+
+
+##### Missings Included
+
+```{r}
+w_1=dendrogram(sea_ice_data, remove_missing = F, n_cluster=4) # with missing included
+w_1$tree
+w_1$clusters
+```
+
+
+##### Missings Excluded
+
+```{r}
+w_2=dendrogram(sea_ice_data, remove_missing = T, n_cluster=4) # with missing excluded
+w_2$tree
+w_2$clusters
+```
+
+
+
+
+```{r}
+k_1=km(sea_ice_data, n_cluster=4)
+k_1$scree
+k_1$clusters
+```
+
+
+
+
+## Cluster Maps ##############################################
+
+```{r}
+library(rworldmap)
+library("readxl")
+locations=read_excel("Arctic Bay Location Coordinates 2.xlsx", skip=1)
+lons=c(-87,-84)
+lats=c(71,74.5)
+```
+
+
+### Ward's Method (Missings Included)
+
+
+```{r, fig.height=9, fig.width=9}
+draw_map(locations, xlim=lons, ylim=lats, clusters=w_1$clusters)
+```
+
+
+
+### Ward's Method (Missings Excluded)
+
+
+```{r, fig.height=9, fig.width=9}
+draw_map(locations, xlim=lons, ylim=lats, clusters=w_2$clusters)
+```
+
+
+
+
+### K-means Method (Missings Excluded)
+
+
+```{r, fig.height=9, fig.width=9}
+draw_map(locations, xlim=lons, ylim=lats, clusters=k_1$clusters)
+```
+
+
+
+
+## Freeze-up ####################################################################################
+
+```{r}
+fname="ArcticBay_Frzup.csv"
+fname_coords="Arctic Bay Location Coordinates 2.xlsx"
+sea_ice_data=read_in(fname)
+sea_ice_long=make_long(sea_ice_data)
+```
+
+
+
+## Time Trend Plots ###############################################
+
+### Linear Trends ###############
+
+```{r, fig.height=12, fig.width=12}
+time_trend_plot_linear(sea_ice_long)
+```
+```{r}
+sea_ice_long %>% 
+  nest(-location) %>% 
+  mutate(g=map2(data, location, ~ggplot(.x, aes(x=year, y=day))+geom_point()+geom_smooth(method="lm", se=F)+ ggtitle(as.character(.y)))) %>% 
+  pull(g)
+```
+
+
+
+
+### Linear Trend Slopes - Magnitude of Trends ##########
+
+```{r}
+slopes=ls_slopes(sea_ice_long)
+slopes
+```
+
+### Average slope of Linear Trends #########
+
+```{r}
+slopes %>% summarize(mean_slope=mean(linear_slope))
+```
+
+### Minimum and Maximum trends (slopes) observed by location, plus all of the negative slopes (for Freeze-up)
+
+
+```{r}
+slopes %>% 
+  filter(linear_slope>0) %>% 
+  filter(linear_slope==min(linear_slope) | linear_slope==max(linear_slope))
+slopes %>% filter(linear_slope<0) # no rows means there are none of them
+```
+
+
+
+
+
+
+
+### Lowess Curves ###############
+
+```{r, fig.height=12, fig.width=12}
+time_trend_plot_lowess(sea_ice_long)
+```
+
+```{r}
+sea_ice_long %>% 
+  nest(-location) %>% 
+  mutate(g=map2(data, location, ~ggplot(.x, aes(x=year, y=day))+geom_point()+geom_smooth(se=F)+ ggtitle(as.character(.y)))) %>% 
+  pull(g)
+```
+
+
+
+
+
+## Mann-Kendall and Theil-Sen #########################################################
+
+### Mann-Kendall ##################################
+
+```{r}
+tab=mann_kendall_table(sea_ice_long)
+tab
+```
+
+```{r}
+tab %>% count(P_value_adj<=0.05)
+```
+
+### Theil-Sen ###############################################
+
+```{r}
+slopes=ts_slopes(sea_ice_long)
+slopes
+```
+
+### Mean of Theil Sen Slope ########################
+
+```{r}
+slopes %>% summarize(mean=mean(theil_sen), sd=sd(theil_sen))
+```
+
+
+
+
+## Mann-Kendall Maps ###################################
+
+```{r, fig.height=9, fig.width=9}
+coordinates=read_coordinates(fname_coords)
+mk_map(tab, coordinates, long_lim=c(84, 87), lat_lim=c(71, 74.5), longlegend=89, latlegend = 74)
+```
+
+
+
+
+## Theil-Sen Maps ###################################
+
+
+```{r, fig.width=9, fig.height=9}
+draw_ts_map(locations, xlim=c(-87, -84), ylim=c(71, 74.5), slopes$theil_sen, scaling=2.7)
+```
+
+
+## Cluster Analysis ###################################################################################
+
+```{r}
+sea_ice_data
+```
+
+
+
+
+### Ward's Method ##################################
+
+
+##### Missings Included
+
+```{r}
+w_1=dendrogram(sea_ice_data, remove_missing = F, n_cluster=4) # with missing included
+w_1$tree
+w_1$clusters
+```
+
+
+##### Missings Excluded
+
+```{r}
+w_2=dendrogram(sea_ice_data, remove_missing = T, n_cluster=4) # with missing excluded
+w_2$tree
+w_2$clusters
+```
+
+
+
+```{r}
+k_1=km(sea_ice_data, n_cluster=4)
+k_1$scree
+k_1$clusters
+```
+
+
+
+
+## Cluster Maps ##############################################
+
+```{r}
+library(rworldmap)
+library("readxl")
+locations=read_excel("Arctic Bay Location Coordinates 2.xlsx", skip=1)
+lons=c(-87,-84)
+lats=c(71,74.5)
+```
+
+
+### Ward's Method (Missings Included)
+
+
+```{r, fig.height=9, fig.width=9}
+draw_map(locations, xlim=lons, ylim=lats, clusters=w_1$clusters)
+```
+
+
+
+### Ward's Method (Missings Excluded)
+
+
+```{r, fig.height=9, fig.width=9}
+draw_map(locations, xlim=lons, ylim=lats, clusters=w_2$clusters)
+```
+
+
+
+
+### K-means Method (Missings Excluded)
+
+
+```{r, fig.height=9, fig.width=9}
+draw_map(locations, xlim=lons, ylim=lats, clusters=k_1$clusters)
+```
+
+
+## Ice Free ####################################################################################
+
+```{r}
+fname="ArcticBay_Icefree.csv"
+fname_coords="Arctic Bay Location Coordinates 2.xlsx"
+sea_ice_data=read_in(fname)
+sea_ice_long=make_long(sea_ice_data)
+```
+
+
+
+## Time Trend Plots ###############################################
+
+### Linear Trends ###############
+
+```{r, fig.height=12, fig.width=12}
+time_trend_plot_linear(sea_ice_long)
+```
+```{r}
+sea_ice_long %>% 
+  nest(-location) %>% 
+  mutate(g=map2(data, location, ~ggplot(.x, aes(x=year, y=day))+geom_point()+geom_smooth(method="lm", se=F)+ ggtitle(as.character(.y)))) %>% 
+  pull(g)
+```
+
+
+
+### Linear Trend Slopes - Magnitude of Trends ##########
+
+```{r}
+slopes=ls_slopes(sea_ice_long)
+slopes
+```
+
+### Average slope of Linear Trends #########
+
+```{r}
+slopes %>% summarize(mean_slope=mean(linear_slope))
+```
+
+### Minimum and Maximum trends (slopes) observed by location, plus all of the negative slopes (for Ice Free)
+
+
+```{r}
+slopes %>% 
+  filter(linear_slope>0) %>% 
+  filter(linear_slope==min(linear_slope) | linear_slope==max(linear_slope))
+slopes %>% filter(linear_slope<0) # no rows means there are none of them
+```
+
+
+
+
+
+
+
+### Lowess Curves ###############
+
+```{r, fig.height=12, fig.width=12}
+time_trend_plot_lowess(sea_ice_long)
+```
+
+```{r}
+sea_ice_long %>% 
+  nest(-location) %>% 
+  mutate(g=map2(data, location, ~ggplot(.x, aes(x=year, y=day))+geom_point()+geom_smooth(se=F)+ ggtitle(as.character(.y)))) %>% 
+  pull(g)
+```
+
+
+
+
+
+## Mann-Kendall and Theil-Sen #########################################################
+
+### Mann-Kendall ##################################
+
+```{r}
+tab=mann_kendall_table(sea_ice_long)
+tab
+```
+
+```{r}
+tab %>% count(P_value_adj<=0.05)
+```
+
+### Theil-Sen ###############################################
+
+```{r}
+slopes=ts_slopes(sea_ice_long)
+slopes
+```
+
+### Mean of Theil Sen Slope ########################
+
+```{r}
+slopes %>% summarize(mean=mean(theil_sen), sd=sd(theil_sen))
+```
+
+
+
+
+## Mann-Kendall Maps ###################################
+
+```{r, fig.height=9, fig.width=9}
+coordinates=read_coordinates(fname_coords)
+mk_map(tab, coordinates, long_lim=c(84, 87), lat_lim=c(71, 74.5), longlegend=89, latlegend = 74)
+```
+
+
+
+
+## Theil-Sen Maps ###################################
+
+
+```{r, fig.width=9, fig.height=9}
+draw_ts_map(locations, xlim=c(-87, -84), ylim=c(71, 74.5), slopes$theil_sen, scaling=2.7)
+```
+
+
+## Cluster Analysis ###################################################################################
+
+```{r}
+sea_ice_data
+```
+
+
+
+
+### Ward's Method ##################################
+
+
+##### Missings Included
+
+```{r}
+w_1=dendrogram(sea_ice_data, remove_missing = F, n_cluster=4) # with missing included
+w_1$tree
+w_1$clusters
+```
+
+
+##### Missings Excluded
+
+```{r}
+w_2=dendrogram(sea_ice_data, remove_missing = T, n_cluster=4) # with missing excluded
+w_2$tree
+w_2$clusters
+```
+
+
+
+```{r}
+k_1=km(sea_ice_data, n_cluster=4)
+k_1$scree
+k_1$clusters
+```
+
+
+
+
+## Cluster Maps ##############################################
+
+```{r}
+library(rworldmap)
+library("readxl")
+locations=read_excel("Arctic Bay Location Coordinates 2.xlsx", skip=1)
+llons=c(-87,-84)
+lats=c(71,74.5)
+```
+
+
+### Ward's Method (Missings Included)
+
+
+```{r, fig.height=9, fig.width=9}
+draw_map(locations, xlim=lons, ylim=lats, clusters=w_1$clusters)
+```
+
+
+
+### Ward's Method (Missings Excluded)
+
+
+```{r, fig.height=9, fig.width=9}
+draw_map(locations, xlim=lons, ylim=lats, clusters=w_2$clusters)
+```
+
+
+
+
+### K-means Method (Missings Excluded)
+
+
+```{r, fig.height=9, fig.width=9}
+draw_map(locations, xlim=lons, ylim=lats, clusters=k_1$clusters)
+```

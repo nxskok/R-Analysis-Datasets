@@ -1,0 +1,423 @@
+---
+Title: "Code for Lowess Curves, Mann-Kendall and Theil-Sen"
+Output: html_notebook
+---
+
+## packages
+
+```{r}
+library(tidyverse)
+library(mkac)
+```
+
+
+
+###################################################################################################################################################
+###################################################################################################################################################
+
+## Breakup ##
+
+## file name
+
+```{r}
+fname="FoxeBasin_Brkup.csv"
+```
+
+## read in data
+
+```{r}
+sea_ice_data=read_csv(fname)
+sea_ice_data %>% rename(year=X1) -> sea_ice_data
+sea_ice_data
+```
+
+## time trends
+
+```{r}
+sea_ice_data %>% gather(location, day, -year) %>% 
+  mutate(location=as.numeric(location)) -> sea_ice_long
+sea_ice_long
+```
+
+time trend graphs
+
+```{r fig.height=12, fig.width=12}
+ggplot(sea_ice_long, aes(x=year, y=day))+geom_point()+
+  geom_smooth(se=F) +
+  facet_wrap(~location)
+```
+
+```{r}
+sea_ice_long %>% 
+  nest(-location) %>% 
+  mutate(g=map2(data, location, ~ggplot(.x, aes(x=year, y=day))+geom_point()+geom_smooth(se=F)+ ggtitle(as.character(.y)))) %>% 
+  pull(g)
+```
+
+
+## Mann-Kendall and Theil-Sen
+
+```{r}
+sea_ice_long
+```
+
+```{r}
+sea_ice_long %>% 
+  drop_na() %>% 
+  nest(-location) %>% 
+  mutate(MK=map(data, ~as_tibble(kendall_Z_adjusted(.$day)))) %>% 
+  unnest(MK) %>% 
+  mutate(P_value_2=format(P_value, scientific=F)) %>% 
+  mutate(P_value_adj_2=format(P_value_adj, scientific=F)) -> mann_kendall
+mann_kendall
+```
+
+## counting significant ones
+
+```{r}
+mann_kendall %>% count(P_value_adj<=0.05)
+```
+
+```{r}
+tss=function(d) {
+  d %>% filter(!is.na(day)) -> dd
+  theil_sen_slope(dd$day)
+}
+
+sea_ice_long %>% nest(-location) %>% 
+  mutate(theil_sen=map_dbl(data, ~tss(.))) -> slopes
+slopes
+```
+## mean of Theil Sen Slope
+
+```{r}
+slopes %>% summarize(mean=mean(theil_sen), sd=sd(theil_sen))
+```
+
+
+##############################################################################################################################################
+
+## Mann-Kendall Significance Maps ##
+
+read locations
+
+```{r}
+library("readxl")
+locations=read_excel("Foxe Basin Location Coordinates 3 proper.xlsx", skip=1)
+locations
+```
+
+
+```{r}
+mann_kendall
+```
+
+```{r}
+mann_kendall %>% 
+  mutate(stars=cut(P_value_adj,breaks=c(0,0.01,0.05,0.10,1),labels=c("***","**","*","NS"))) %>% 
+  mutate(plot_colour=case_when(
+    P_value_adj<=0.01 ~ "blue",
+    P_value_adj<=0.05 ~ "red",
+    P_value_adj<=0.10 ~ "yellow",
+    TRUE ~ "green"
+  )) -> mann_kendall2
+```
+
+```{r}
+mann_kendall2
+mann_kendall2 %>% distinct(plot_colour, stars) %>% 
+  mutate(rank=case_when(
+    plot_colour == "blue" ~ 1,
+    plot_colour == "red" ~ 2,
+    plot_colour == "yellow" ~ 3,
+    plot_colour == "green" ~ 4
+  )) %>% 
+  arrange(rank) -> legend_map
+legend_map
+```
+
+
+```{r fig.height=9, fig.width=9}
+with(locations,plot(newmap,xlim=lons,ylim=lats))
+with(locations, points(-Longitude,Latitude,pch=19,col=mann_kendall2$plot_colour,cex=2.3))
+with(locations, text(-Longitude,Latitude,Location,pos=3,cex=1.7))
+legend(-88,69,legend=legend_map$stars,col=legend_map$plot_colour,pch=19, cex=2.3)
+```
+
+
+
+
+
+###################################################################################################################################################
+###################################################################################################################################################
+
+## Freeze-up ##
+
+## file name
+
+```{r}
+fname="FoxeBasin_Frzup.csv"
+```
+
+## read in data
+
+```{r}
+sea_ice_data=read_csv(fname)
+sea_ice_data %>% rename(year=X1) -> sea_ice_data
+sea_ice_data
+```
+
+## time trends
+
+```{r}
+sea_ice_data %>% gather(location, day, -year) %>% 
+  mutate(location=as.numeric(location)) -> sea_ice_long
+sea_ice_long
+```
+
+time trend graphs
+
+```{r fig.height=12, fig.width=12}
+ggplot(sea_ice_long, aes(x=year, y=day))+geom_point()+
+  geom_smooth(se=F) +
+  facet_wrap(~location)
+```
+
+```{r}
+sea_ice_long %>% 
+  nest(-location) %>% 
+  mutate(g=map2(data, location, ~ggplot(.x, aes(x=year, y=day))+geom_point()+geom_smooth(se=F)+ ggtitle(as.character(.y)))) %>% 
+  pull(g)
+```
+
+
+## Mann-Kendall and Theil-Sen
+
+```{r}
+sea_ice_long
+```
+
+```{r}
+sea_ice_long %>% 
+  drop_na() %>% 
+  nest(-location) %>% 
+  mutate(MK=map(data, ~as_tibble(kendall_Z_adjusted(.$day)))) %>% 
+  unnest(MK) %>% 
+  mutate(P_value_2=format(P_value, scientific=F)) %>% 
+  mutate(P_value_adj_2=format(P_value_adj, scientific=F)) -> mann_kendall
+mann_kendall
+```
+
+## counting significant ones
+
+```{r}
+mann_kendall %>% count(P_value_adj<=0.05)
+```
+
+```{r}
+tss=function(d) {
+  d %>% filter(!is.na(day)) -> dd
+  theil_sen_slope(dd$day)
+}
+
+sea_ice_long %>% nest(-location) %>% 
+  mutate(theil_sen=map_dbl(data, ~tss(.))) -> slopes
+slopes
+```
+## mean of Theil Sen Slope
+
+```{r}
+slopes %>% summarize(mean=mean(theil_sen), sd=sd(theil_sen))
+```
+
+
+
+##############################################################################################################################################
+
+## Mann-Kendall Significance Maps ##
+
+read locations
+
+```{r}
+library("readxl")
+locations=read_excel("Foxe Basin Location Coordinates 3 proper.xlsx", skip=1)
+locations
+```
+
+
+```{r}
+mann_kendall
+```
+
+```{r}
+mann_kendall %>% 
+  mutate(stars=cut(P_value_adj,breaks=c(0,0.01,0.05,0.10,1),labels=c("***","**","*","NS"))) %>% 
+  mutate(plot_colour=case_when(
+    P_value_adj<=0.01 ~ "blue",
+    P_value_adj<=0.05 ~ "red",
+    P_value_adj<=0.10 ~ "yellow",
+    TRUE ~ "green"
+  )) -> mann_kendall2
+```
+
+```{r}
+mann_kendall2
+mann_kendall2 %>% distinct(plot_colour, stars) %>% 
+  mutate(rank=case_when(
+    plot_colour == "blue" ~ 1,
+    plot_colour == "red" ~ 2,
+    plot_colour == "yellow" ~ 3,
+    plot_colour == "green" ~ 4
+  )) %>% 
+  arrange(rank) -> legend_map
+legend_map
+```
+
+
+```{r fig.height=9, fig.width=9}
+with(locations,plot(newmap,xlim=lons,ylim=lats))
+with(locations, points(-Longitude,Latitude,pch=19,col=mann_kendall2$plot_colour,cex=2.3))
+with(locations, text(-Longitude,Latitude,Location,pos=3,cex=1.7))
+legend(-88,69,legend=legend_map$stars,col=legend_map$plot_colour,pch=19, cex=2.3)
+```
+
+
+
+
+
+###################################################################################################################################################
+###################################################################################################################################################
+
+
+## Ice Free ##
+
+## file name
+
+```{r}
+fname="FoxeBasin_Icefree.csv"
+```
+
+## read in data
+
+```{r}
+sea_ice_data=read_csv(fname)
+sea_ice_data %>% rename(year=X1) -> sea_ice_data
+sea_ice_data
+```
+
+## time trends
+
+```{r}
+sea_ice_data %>% gather(location, day, -year) %>% 
+  mutate(location=as.numeric(location)) -> sea_ice_long
+sea_ice_long
+```
+
+time trend graphs
+
+```{r fig.height=12, fig.width=12}
+ggplot(sea_ice_long, aes(x=year, y=day))+geom_point()+
+  geom_smooth(se=F) +
+  facet_wrap(~location)
+```
+
+```{r}
+sea_ice_long %>% 
+  nest(-location) %>% 
+  mutate(g=map2(data, location, ~ggplot(.x, aes(x=year, y=day))+geom_point()+geom_smooth(se=F)+ ggtitle(as.character(.y)))) %>% 
+  pull(g)
+```
+
+
+## Mann-Kendall and Theil-Sen
+
+```{r}
+sea_ice_long
+```
+
+```{r}
+sea_ice_long %>% 
+  drop_na() %>% 
+  nest(-location) %>% 
+  mutate(MK=map(data, ~as_tibble(kendall_Z_adjusted(.$day)))) %>% 
+  unnest(MK) %>% 
+  mutate(P_value_2=format(P_value, scientific=F)) %>% 
+  mutate(P_value_adj_2=format(P_value_adj, scientific=F)) -> mann_kendall
+mann_kendall
+```
+
+## counting significant ones
+
+```{r}
+mann_kendall %>% count(P_value_adj<=0.05)
+```
+
+```{r}
+tss=function(d) {
+  d %>% filter(!is.na(day)) -> dd
+  theil_sen_slope(dd$day)
+}
+
+sea_ice_long %>% nest(-location) %>% 
+  mutate(theil_sen=map_dbl(data, ~tss(.))) -> slopes
+slopes
+```
+## mean of Theil Sen Slope
+
+```{r}
+slopes %>% summarize(mean=mean(theil_sen), sd=sd(theil_sen))
+```
+
+
+
+##############################################################################################################################################
+
+## Mann-Kendall Significance Maps ##
+
+read locations
+
+```{r}
+library("readxl")
+locations=read_excel("Foxe Basin Location Coordinates 3 proper.xlsx", skip=1)
+locations
+```
+
+
+```{r}
+mann_kendall
+```
+
+```{r}
+mann_kendall %>% 
+  mutate(stars=cut(P_value_adj,breaks=c(0,0.01,0.05,0.10,1),labels=c("***","**","*","NS"))) %>% 
+  mutate(plot_colour=case_when(
+    P_value_adj<=0.01 ~ "blue",
+    P_value_adj<=0.05 ~ "red",
+    P_value_adj<=0.10 ~ "yellow",
+    TRUE ~ "green"
+  )) -> mann_kendall2
+```
+
+```{r}
+mann_kendall2
+mann_kendall2 %>% distinct(plot_colour, stars) %>% 
+  mutate(rank=case_when(
+    plot_colour == "blue" ~ 1,
+    plot_colour == "red" ~ 2,
+    plot_colour == "yellow" ~ 3,
+    plot_colour == "green" ~ 4
+  )) %>% 
+  arrange(rank) -> legend_map
+legend_map
+```
+
+
+```{r fig.height=9, fig.width=9}
+with(locations,plot(newmap,xlim=lons,ylim=lats))
+with(locations, points(-Longitude,Latitude,pch=19,col=mann_kendall2$plot_colour,cex=2.3))
+with(locations, text(-Longitude,Latitude,Location,pos=3,cex=1.7))
+legend(-88,69,legend=legend_map$stars,col=legend_map$plot_colour,pch=19, cex=2.3)
+```
+
+
+
